@@ -1,23 +1,23 @@
-module R = Core_kernel.Result
+open Result
 
 type error =
   | InvalidCharacters
 
 module Group : sig
   type t 
-  val of_string : string option -> (t, error) R.t
+  val of_string : string option -> (t, error) result
   val to_string : t -> string option
 end = struct
   
-  let allowed_chars = Re2.Regex.create_exn "[0-9a-zA-Z\\-]+"
+  let allowed_chars = Re.str "[0-9a-zA-Z\\-]+" |> Re.compile
   
   type t = string option
   
   let of_string = function
-    | None -> R.Ok None
-    | Some s -> (match Re2.Regex.matches allowed_chars s with
-      | true -> R.Ok (Some s)
-      | false -> R.Error InvalidCharacters)
+    | None -> Ok None
+    | Some s -> (match Re.execp allowed_chars s with
+      | true -> Ok (Some s)
+      | false -> Error InvalidCharacters)
   
   let to_string g = g
 
@@ -30,7 +30,7 @@ module Name : sig
     | RELATED | CATEGORIES | NOTE | PRODID | REV | SOUND | UID | CLIENTPIDMAP
     | URL | KEY | FBURL | CALADRURI | CALURI | XML | BIRTHPLACE | DEATHPLACE
     | DEATHDATE | EXPERTISE | HOBBY | INTEREST | ORG_DIRECTORY | X_NAME of string
-  val of_string : string -> (t, error) R.t
+  val of_string : string -> (t, error) result
   val to_string : t -> string
 end = struct
   
@@ -42,7 +42,7 @@ end = struct
     | DEATHDATE | EXPERTISE | HOBBY | INTEREST | ORG_DIRECTORY | X_NAME of string
   
   let of_string t = 
-    R.Ok (match String.uppercase t with
+    Ok (match String.uppercase_ascii t with
     | "SOURCE" -> SOURCE | "KIND" -> KIND | "FN" -> FN | "N" -> N | "NICKNAME" -> NICKNAME
     | "PHOTO" -> PHOTO | "BDAY" -> BDAY | "ANNIVERSARY" -> ANNIVERSARY | "GENDER" -> GENDER
     | "ADR" -> ADR | "TEL" -> TEL | "EMAIL" -> EMAIL | "IMPP" -> IMPP | "LANG" -> LANG
@@ -74,7 +74,7 @@ module Parameter : sig
     name : string;
     values : string list;
   }
-  val of_parsed : Syntax.parameter -> (t, error) R.t
+  val of_parsed : Syntax.parameter -> (t, error) result
 end = struct
   
   type t = { 
@@ -82,7 +82,7 @@ end = struct
     values : string list;
   }
   
-  let of_parsed (parameter : Syntax.parameter ) = R.Ok {
+  let of_parsed (parameter : Syntax.parameter ) = Ok {
     name = parameter.Syntax.name;
     values = parameter.Syntax.values;
   }
@@ -91,20 +91,38 @@ end
 
 module Value : sig
   type t
-  val of_string : string -> (t, error) R.t
+  val of_string : string -> (t, error) result
   val to_string : t -> string
 end = struct
   
   type t = string
   
-  let of_string t = R.Ok t
+  let of_string t = Ok t
   
   let to_string t = t 
   
 end
 
-module Content_line = struct
+module M :sig
+    val all : ('a, 'b) result list -> ('a list, 'b) result
+    val ( >>= ) : ('a, 'b) result -> ('a -> ('c, 'b) result) -> ('c, 'b) result
+end = struct
+  let bind_result e f =
+      match e with
+      | Error _ as err -> err
+      | Ok x -> f x
+  let (>>=) = bind_result
+  let all results =
+    let rec _all acc xs =
+      match xs with
+      | [] -> Ok (List.rev acc)
+      | Error _ as err :: _ -> err
+      | Ok x::rest -> _all (x::acc) rest
+    in
+    _all [] results
+end
 
+module Content_line = struct
   type t = {
     group : Group.t;
     name : Name.t;
@@ -113,14 +131,14 @@ module Content_line = struct
   }
 
   let of_parsed parsed = 
-    let (>>=) = R.(>>=) in
+    let (>>=) = M.(>>=) in
     Group.of_string parsed.Syntax.group >>= fun group ->
     Name.of_string parsed.Syntax.name >>= fun name ->
       
-    parsed.Syntax.parameters |> List.map Parameter.of_parsed |> R.all >>= fun parameters -> 
+    parsed.Syntax.parameters |> List.map Parameter.of_parsed |> M.all >>= fun parameters -> 
       
     Value.of_string parsed.Syntax.value >>= fun value ->      
-    R.Ok {group = group; name = name; parameters = parameters; value = value;}
+    Ok {group = group; name = name; parameters = parameters; value = value;}
 
 end
 
@@ -129,7 +147,7 @@ type t = {
 }
 
 let of_parsed parsed = 
-  let (>>=) = R.(>>=) in
-  parsed.Syntax.content_lines |> List.map Content_line.of_parsed |> R.all >>= fun cls ->
-  R.Ok { content_lines = cls; }
+  let (>>=) = M.(>>=) in
+  parsed.Syntax.content_lines |> List.map Content_line.of_parsed |> M.all >>= fun cls ->
+  Ok { content_lines = cls; }
   

@@ -1,0 +1,5 @@
+PKG camomile menhirLib re result ulex stringext
+B _build/**
+S src/**
+S test/**
+FLG -safe-string

@@ -1,7 +1,6 @@
 open Parser
 open Ulexing
-
-module R = Core_kernel.Result
+open Result
 
 let regexp newline = "\r\n"
 
@@ -105,10 +104,10 @@ let parse stream =
 	let lexbuf = stream |> unwrap_stream |> from_utf8_stream in 
   let revised_parser = traditional2revised Parser.vcards in
 	try
-  	R.Ok (revised_parser (fun () -> (token lexbuf, Lexing.dummy_pos, Lexing.dummy_pos)))
+  	Ok (revised_parser (fun () -> (token lexbuf, Lexing.dummy_pos, Lexing.dummy_pos)))
 	with
 	| Error ->
-    R.Error (Lexing (lexeme_start lexbuf, lexeme_end lexbuf, utf8_lexeme lexbuf))
+    Error (Lexing (lexeme_start lexbuf, lexeme_end lexbuf, utf8_lexeme lexbuf))
 	| Parser.Error -> 
-    R.Error (Parsing (lexeme_start lexbuf, lexeme_end lexbuf, utf8_lexeme lexbuf))
+    Error (Parsing (lexeme_start lexbuf, lexeme_end lexbuf, utf8_lexeme lexbuf))
 	  

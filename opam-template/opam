@@ -1,7 +1,7 @@
 opam-version: "1"
 name: "${name}"
 version: "${version}"
-maintainer: "dominic.price@nottingham.ac.uk"
+maintainer: "jchanco@fastmail.fm"
 homepage: "${homepage}"
 authors: [ "${authors}" ]
 license: "${license}"
@@ -17,10 +17,11 @@ remove: [
   ["ocamlfind" "remove" "${library(sociaml_vcard).findlibname}"]
 ]
 depends: [
-  "oasis"
-  "core_kernel"
-  "menhir"
+  "oasis",
+  "camomile",
+  "menhirLib",
+  "re",
+  "result",
+  "stringext",
   "ulex"
-  "re2"
-  "camomile"
 ]

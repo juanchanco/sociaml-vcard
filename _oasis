@@ -20,9 +20,10 @@ Library sociaml_vcard
   Pack:           true
   BuildDepends:
     camomile,
-    core_kernel,
     menhirLib,
-    re2,
+    re,
+    result,
+    stringext,
     ulex
   
 Document sociaml_vcard
